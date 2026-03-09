@@ -11,6 +11,8 @@ import (
 	"github.com/fiorellizz/gopayflow/internal/application"
 	"github.com/fiorellizz/gopayflow/internal/infrastructure/database"
 	httpInterface "github.com/fiorellizz/gopayflow/internal/interfaces/http"
+	"github.com/streadway/amqp"
+	"github.com/fiorellizz/gopayflow/internal/infrastructure/messaging"
 )
 
 func main() {
@@ -26,9 +28,35 @@ func main() {
 		log.Fatal(err)
 	}
 
+	rabbitURL := os.Getenv("RABBIT_URL")
+
+	conn, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Fatal(err)
+	}
+	queue, err := channel.QueueDeclare(
+		"orders_queue",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publisher := messaging.NewRabbitMQPublisher(channel, queue.Name)
+
 	orderRepo := database.NewPostgresOrderRepository(db)
 
-	createOrderUseCase := application.NewCreateOrderUseCase(orderRepo)
+	createOrderUseCase := application.NewCreateOrderUseCase(orderRepo, publisher)
 	getOrderByIDUseCase := application.NewGetOrderByIDUseCase(orderRepo)
 	listOrdersUseCase := application.NewListOrdersUseCase(orderRepo)
 

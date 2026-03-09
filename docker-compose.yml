@@ -1,4 +1,5 @@
 services:
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: gopayflow_rabbit
@@ -57,7 +58,23 @@ services:
       DB_URL: postgres://gopay:gopaypass@postgres:5432/gopayflow?sslmode=disable
       RABBIT_URL: amqp://admin:admin@rabbitmq:5672/
     command: sh -c "go mod tidy && go run ./cmd/api"
-  
+
+  worker:
+    image: golang:1.25-alpine
+    container_name: gopayflow_worker
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      DB_URL: postgres://gopay:gopaypass@postgres:5432/gopayflow?sslmode=disable
+      RABBIT_URL: amqp://admin:admin@rabbitmq:5672/
+    command: sh -c "go mod tidy && go run ./cmd/worker"
+
 volumes:
   rabbit_data:
   postgres_data:

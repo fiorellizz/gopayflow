@@ -18,11 +18,17 @@ type CreateOrderOutput struct {
 
 type CreateOrderUseCase struct {
 	repo domain.OrderRepository
+	publisher domain.EventPublisher
 }
 
-func NewCreateOrderUseCase(repo domain.OrderRepository) *CreateOrderUseCase {
+func NewCreateOrderUseCase(
+	repo domain.OrderRepository,
+	publisher domain.EventPublisher,
+) *CreateOrderUseCase {
+
 	return &CreateOrderUseCase{
-		repo: repo,
+		repo:      repo,
+		publisher: publisher,
 	}
 }
 
@@ -39,6 +45,11 @@ func (uc *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInpu
 	}
 
 	err := uc.repo.Create(ctx, order)
+	if err != nil {
+		return nil, err
+	}
+
+	err = uc.publisher.PublishOrderCreated(ctx, order)
 	if err != nil {
 		return nil, err
 	}

@@ -89,3 +89,20 @@ func (r *PostgresOrderRepository) FindAll(ctx context.Context) ([]*domain.Order,
 
 	return orders, nil
 }
+
+func (r *PostgresOrderRepository) UpdateStatus(
+	ctx context.Context,
+	id string,
+	status domain.OrderStatus,
+) error {
+
+	query := `
+		UPDATE orders
+		SET status = $1
+		WHERE id = $2
+	`
+
+	_, err := r.db.ExecContext(ctx, query, status, id)
+
+	return err
+}
