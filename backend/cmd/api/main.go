@@ -68,6 +68,8 @@ func main() {
 
 	router := gin.Default()
 
+	router.SetTrustedProxies([]string{"nginx"})
+
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "API is running",

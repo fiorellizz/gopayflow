@@ -36,6 +36,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	_, err = channel.QueueDeclare(
+		"orders_queue",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	msgs, err := channel.Consume(
 		"orders_queue",
 		"",
