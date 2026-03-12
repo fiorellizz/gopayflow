@@ -72,7 +72,6 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 | Distribui requisições                                     |
 | Balanceamento de carga                                    |
 | Alta disponibilidade                                      |
-| Rate limiting (futuro)                                    |
 |-----------------------------------------------------------|
                            |
                            |
@@ -88,8 +87,8 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 | Responsabilidades:                                        |
 | - Receber requisições                                     |
 | - Validar dados                                           |
-| - Criar pedidos                                           |
-| - Consultar pedidos                                       |
+| - Criar pagamento                                           |
+| - Consultar pagamento                                       |
 | - Publicar eventos                                        |
 |-----------------------------------------------------------|
                            |
@@ -132,7 +131,6 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 |                                                           |
 | PostgreSQL Repository                                     |
 | RabbitMQ Publisher                                        |
-| Redis Queue (alternativa)                                 |
 |-----------------------------------------------------------|
             |                             |
             |                             |
@@ -143,7 +141,7 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 |---------------------------|      |---------------------------|
 | Persistência de dados     |      | Mensageria assíncrona     |
 |                           |      |                           |
-| Tabela: orders            |      | RabbitMQ / Redis          |
+| Tabela: orders            |      | RabbitMQ                  |
 |                           |      |                           |
 | Status do pagamento       |      | Eventos publicados        |
 | Histórico                 |      |                           |
