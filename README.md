@@ -1,14 +1,14 @@
 # GoPayFlow
 
-**GoPayFlow** é uma arquitetura backend de processamento de pagamentos construída em **Golang** com foco em **Clean Architecture**, **processamento assíncrono**, **escalabilidade horizontal** e **infraestrutura containerizada**.
+**GoPayFlow** é uma arquitetura backend de processamento de pagamentos construída em **Golang** com foco em **processamento assíncrono**, **escalabilidade horizontal** e **infraestrutura containerizada**.
 
-O projeto simula o fluxo real de um **sistema de pagamentos**, separando claramente:
+O projeto simula o fluxo de um **sistema de pagamentos**, separando claramente:
 
 * API de entrada
+* balanceamento de carga
 * fila de processamento
 * workers assíncronos
 * banco de dados
-* balanceamento de carga
 
 O objetivo não é apenas criar uma API, mas **demonstrar uma arquitetura de backend completa**, preparada para crescimento e alto volume de requisições.
 
@@ -27,7 +27,7 @@ Client (Frontend)
         ↓
    PostgreSQL (persistência)
         ↓
-   Redis / RabbitMQ (fila)
+   RabbitMQ (fila)
         ↓
 ---------------------------
         ↓
@@ -54,247 +54,165 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 
 # Componentes da Arquitetura
 
-## Client
-
-Interface que consome a API.
-
-Pode ser:
-
-* Web App
-* Mobile App
-* Sistemas terceiros
-* Integrações via REST
-
----
-
-## Nginx (Load Balancer)
-
-Responsável por:
-
-* balancear requisições
-* distribuir tráfego entre múltiplas APIs
-* aumentar disponibilidade
-
-Exemplo:
-
 ```
-Client
-   ↓
- Nginx
-  ↓ ↓ ↓ ↓
-API API API API
+|-----------------------------------------------------------|
+|                         CLIENT                            |
+|-----------------------------------------------------------|
+| Web App                                                   |
+| Mobile App                                                |
+| Sistemas terceiros                                        |
+| Integrações REST                                          |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                   NGINX LOAD BALANCER                     |
+|-----------------------------------------------------------|
+| Distribui requisições                                     |
+| Balanceamento de carga                                    |
+| Alta disponibilidade                                      |
+| Rate limiting (futuro)                                    |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                      API LAYER                            |
+|-----------------------------------------------------------|
+| API Instance 1                                            |
+| API Instance 2                                            |
+| API Instance 3                                            |
+| API Instance 4                                            |
+|-----------------------------------------------------------|
+| Responsabilidades:                                        |
+| - Receber requisições                                     |
+| - Validar dados                                           |
+| - Criar pedidos                                           |
+| - Consultar pedidos                                       |
+| - Publicar eventos                                        |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                    APPLICATION LAYER                      |
+|-----------------------------------------------------------|
+| Casos de Uso                                              |
+|                                                           |
+| CreateOrder                                               |
+| GetOrderByID                                              |
+| ListOrders                                                |
+|                                                           |
+| Regras de negócio                                         |
+| Orquestração do fluxo                                     |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                      DOMAIN LAYER                         |
+|-----------------------------------------------------------|
+| Entidades do sistema                                      |
+|                                                           |
+| Order                                                     |
+| PaymentStatus                                             |
+|                                                           |
+| Interfaces (contratos)                                    |
+|                                                           |
+| OrderRepository                                           |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                   INFRASTRUCTURE LAYER                    |
+|-----------------------------------------------------------|
+| Implementações externas                                   |
+|                                                           |
+| PostgreSQL Repository                                     |
+| RabbitMQ Publisher                                        |
+| Redis Queue (alternativa)                                 |
+|-----------------------------------------------------------|
+            |                             |
+            |                             |
+            v                             v
+
+|---------------------------|      |---------------------------|
+|        POSTGRESQL         |      |          QUEUE            |
+|---------------------------|      |---------------------------|
+| Persistência de dados     |      | Mensageria assíncrona     |
+|                           |      |                           |
+| Tabela: orders            |      | RabbitMQ / Redis          |
+|                           |      |                           |
+| Status do pagamento       |      | Eventos publicados        |
+| Histórico                 |      |                           |
+|---------------------------|      |---------------------------|
+            |                             |
+            |                             |
+            |                             v
+            |                |--------------------------------|
+            |                |           MESSAGE BUS          |
+            |                |--------------------------------|
+            |                | Eventos de pagamento           |
+            |                | Eventos de atualização         |
+            |                | Processamento desacoplado      |
+            |                |--------------------------------|
+            |                             |
+            |                             |
+            v                             v
+
+|-----------------------------------------------------------|
+|                         WORKERS                           |
+|-----------------------------------------------------------|
+| Worker Instance 1                                         |
+| Worker Instance 2                                         |
+| Worker Instance 3                                         |
+|-----------------------------------------------------------|
+| Responsabilidades:                                        |
+| - Consumir mensagens da fila                              |
+| - Processar pagamento                                     |
+| - Simular gateway externo                                 |
+| - Atualizar status do pedido                              |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                   PAYMENT PROCESSOR                       |
+|-----------------------------------------------------------|
+| Simulação de gateway de pagamento                         |
+|                                                           |
+| Exemplo de fluxo:                                         |
+|                                                           |
+| Pedido recebido                                           |
+| ↓                                                         |
+| Processamento                                             |
+| ↓                                                         |
+| Resultado aprovado ou falho                               |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                      DATABASE UPDATE                      |
+|-----------------------------------------------------------|
+| Atualização do status do pedido                           |
+|                                                           |
+| PENDING → APPROVED                                        |
+| PENDING → FAILED                                          |
+|-----------------------------------------------------------|
+                           |
+                           |
+                           v
+|-----------------------------------------------------------|
+|                       FINAL STATE                         |
+|-----------------------------------------------------------|
+| Pedido final armazenado no banco                          |
+| Consulta disponível via API                               |
+| Histórico persistido                                      |
+|-----------------------------------------------------------|
 ```
-
----
-
-## API
-
-A API é responsável por:
-
-* receber requisições HTTP
-* validar dados
-* registrar pedidos
-* publicar eventos na fila
-* retornar resposta imediata ao cliente
-
-Tecnologias utilizadas:
-
-* **Golang**
-* **Gin**
-* **Clean Architecture**
-
-A API é **stateless**, permitindo escalabilidade horizontal.
-
----
-
-## PostgreSQL
-
-Banco de dados principal do sistema.
-
-Responsável por armazenar:
-
-* pedidos
-* status do pagamento
-* histórico
-
-Tabela principal:
-
-```
-orders
-```
-
-Campos principais:
-
-| Campo      | Tipo      |
-| ---------- | --------- |
-| id         | UUID      |
-| amount     | NUMERIC   |
-| status     | VARCHAR   |
-| created_at | TIMESTAMP |
-
-Status possíveis:
-
-```
-PENDING
-APPROVED
-FAILED
-```
-
----
-
-## Sistema de Fila
-
-A fila desacopla o **tempo de resposta da API** do **processamento do pagamento**.
-
-Isso permite:
-
-* maior throughput
-* processamento assíncrono
-* resiliência
-* escalabilidade
-
-No projeto são utilizados:
-
-* RabbitMQ ou Redis
-
-A API envia mensagens para a fila e os Workers consomem.
-
----
-
-## Worker
-
-O Worker é responsável pelo processamento assíncrono.
-
-Funções:
-
-* consumir mensagens da fila
-* simular processamento do pagamento
-* atualizar status no banco
-
-Fluxo:
-
-```
-Fila → Worker → Banco
-```
-
-Exemplo de simulação:
-
-```
-sleep(2s)
-status = APPROVED
-```
-
-Workers podem ser escalados horizontalmente.
-
----
-
-# Estrutura do Projeto
-
-```
-gopayflow
-│
-├── backend
-│
-│   ├── cmd
-│   │   └── api
-│   │
-│   ├── internal
-│   │
-│   │   ├── domain
-│   │   │
-│   │   ├── application
-│   │   │
-│   │   ├── infrastructure
-│   │   │   ├── database
-│   │   │   └── messaging
-│   │   │
-│   │   └── interfaces
-│   │       └── http
-│   │
-│   ├── migrations
-│   │
-│   ├── Dockerfile
-│   ├── go.mod
-│   │
-│
-├── docker-compose.yml
-│
-└── nginx
-```
-
----
-
-# Clean Architecture
-
-O projeto segue **Clean Architecture**, separando responsabilidades.
-
-Camadas principais:
-
-```
-Interfaces
-    ↓
-Application
-    ↓
-Domain
-    ↓
-Infrastructure
-```
-
----
-
-## Domain
-
-Contém as **entidades e contratos do sistema**.
-
-Não depende de nenhuma outra camada.
-
-Exemplo:
-
-```
-Order
-OrderRepository
-```
-
----
-
-## Application
-
-Implementa os **casos de uso do sistema**.
-
-Exemplos:
-
-* CreateOrder
-* GetOrderByID
-* ListOrders
-
-Essa camada orquestra a lógica de negócio.
-
----
-
-## Infrastructure
-
-Responsável por integrações externas.
-
-Exemplos:
-
-* PostgreSQL
-* RabbitMQ
-* Redis
-* serviços externos
-
----
-
-## Interfaces
-
-Responsável pela comunicação com o mundo externo.
-
-Exemplo:
-
-```
-HTTP Handlers
-```
-
-Recebem requests e chamam os UseCases.
 
 ---
 
@@ -372,26 +290,6 @@ Serviços disponíveis:
 
 ---
 
-# Escalabilidade
-
-O sistema foi projetado para escalar horizontalmente.
-
-Exemplo:
-
-```
-        Nginx
-         ↓
-  API  API  API  API
-         ↓
-      PostgreSQL
-         ↓
-        Queue
-         ↓
-  Worker Worker Worker
-```
-
----
-
 # Benefícios da Arquitetura
 
 * desacoplamento entre API e processamento
@@ -400,24 +298,6 @@ Exemplo:
 * facilidade de escalar workers
 * APIs stateless
 * separação clara de responsabilidades
-
----
-
-# Próximos Passos
-
-Possíveis evoluções do sistema:
-
-* rate limiting
-* autenticação
-* observabilidade
-* métricas
-* tracing distribuído
-* retry automático de pagamentos
-* idempotência de requisições
-* dead letter queues
-* monitoramento de filas
-* testes automatizados
-* CI/CD
 
 ---
 
