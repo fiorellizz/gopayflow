@@ -87,8 +87,8 @@ Essa arquitetura é amplamente utilizada em sistemas reais de pagamento.
 | Responsabilidades:                                        |
 | - Receber requisições                                     |
 | - Validar dados                                           |
-| - Criar pagamento                                           |
-| - Consultar pagamento                                       |
+| - Criar pagamento                                         |
+| - Consultar pagamento                                     |
 | - Publicar eventos                                        |
 |-----------------------------------------------------------|
                            |
