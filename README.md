@@ -256,6 +256,14 @@ GET /orders/:id
 
 ---
 
+## Estrutura das APIs
+
+![Arquitetura das APIs](doc/apis.png)
+
+## Visão do Fluxo
+
+![Fluxo da Arquitetura](doc/flow.png)
+
 # Infraestrutura
 
 Toda a stack roda em containers.
